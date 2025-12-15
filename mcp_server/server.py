@@ -2,7 +2,6 @@
 MCP Server for US Accidents Dataset (2016-2023)
 Powers an Autonomous Vehicle Agent with accident hotspot and risk analysis tools.
 
-OPTIMIZED VERSION - Uses pre-aggregated summary tables for instant queries.
 """
 
 import json
@@ -14,10 +13,8 @@ from contextlib import contextmanager
 
 from mcp.server.fastmcp import FastMCP
 
-# Initialize the MCP server
 mcp = FastMCP("US Accidents Dataset Server")
 
-# Database path
 DB_PATH = os.path.join(os.path.dirname(__file__), "accidents.db")
 
 
@@ -32,9 +29,7 @@ def get_db_connection():
         conn.close()
 
 
-# ============================================================================
-# TOOL 1: Get Accident Hotspots by Region (OPTIMIZED)
-# ============================================================================
+# TOOL 1: Get Accident Hotspots by Region
 @mcp.tool()
 def get_accident_hotspots(
     state: str | None = None,
@@ -67,7 +62,6 @@ def get_accident_hotspots(
         
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
         
-        # Use pre-aggregated city_stats table
         query = f"""
             SELECT City, State, County, accident_count, avg_severity, center_lat, center_lng
             FROM city_stats
@@ -87,9 +81,7 @@ def get_accident_hotspots(
         }, indent=2)
 
 
-# ============================================================================
 # TOOL 2: Get Accidents Near Location
-# ============================================================================
 @mcp.tool()
 def get_accidents_near_location(
     latitude: float,
@@ -154,9 +146,7 @@ def get_accidents_near_location(
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 3: Get Risk Assessment for Time Period (OPTIMIZED)
-# ============================================================================
+# TOOL 3: Get Risk Assessment for Time Period
 @mcp.tool()
 def get_temporal_risk_assessment(
     hour_of_day: int,
@@ -189,7 +179,6 @@ def get_temporal_risk_assessment(
         
         where_clause = " AND ".join(conditions)
         
-        # Use pre-aggregated hourly_dow_stats table
         query = f"""
             SELECT 
                 SUM(accident_count) as accident_count,
@@ -202,7 +191,6 @@ def get_temporal_risk_assessment(
         cursor.execute(query, params)
         result = dict(cursor.fetchone())
         
-        # Get global average from pre-computed table
         cursor.execute("SELECT avg_hourly FROM global_stats")
         avg_hourly = cursor.fetchone()[0]
         
@@ -237,9 +225,7 @@ def get_temporal_risk_assessment(
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 4: Get Weather-Based Risk Assessment (OPTIMIZED)
-# ============================================================================
+# TOOL 4: Get Weather-Based Risk Assessment 
 @mcp.tool()
 def get_weather_risk_assessment(
     weather_condition: str,
@@ -269,7 +255,6 @@ def get_weather_risk_assessment(
         
         where_clause = " AND ".join(conditions)
         
-        # Use pre-aggregated weather_stats table
         query = f"""
             SELECT 
                 SUM(accident_count) as accident_count,
@@ -283,7 +268,6 @@ def get_weather_risk_assessment(
         cursor.execute(query, params)
         result = dict(cursor.fetchone())
         
-        # Get clear weather baseline from global_stats
         cursor.execute("SELECT clear_weather_severity FROM global_stats")
         clear_severity = cursor.fetchone()[0] or 2.0
         
@@ -319,9 +303,7 @@ def get_weather_risk_assessment(
         }, indent=2)
 
 
-# ============================================================================
 # TOOL 5: Analyze Route Risk
-# ============================================================================
 @mcp.tool()
 def analyze_route_risk(
     waypoints: list[dict],
@@ -358,7 +340,6 @@ def analyze_route_risk(
             min_lng = min(start['lng'], end['lng']) - 0.05
             max_lng = max(start['lng'], end['lng']) + 0.05
             
-            # Simple location-based query (fast with indexes)
             query = """
                 SELECT COUNT(*) as cnt, AVG(Severity) as sev, MAX(Severity) as max_sev
                 FROM accidents
@@ -413,9 +394,7 @@ def analyze_route_risk(
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 6: Get Road Feature Risk Analysis (OPTIMIZED)
-# ============================================================================
+# TOOL 6: Get Road Feature Risk Analysis 
 @mcp.tool()
 def get_road_feature_risk(
     feature: str,
@@ -444,7 +423,6 @@ def get_road_feature_risk(
         state_condition = "AND State = ?" if state else ""
         params = [feature_lower] + ([state.upper()] if state else [])
         
-        # Use pre-aggregated road_feature_stats table
         query = f"""
             SELECT has_feature, SUM(cnt) as count, 
                    SUM(cnt * sev) / SUM(cnt) as avg_severity,
@@ -496,9 +474,7 @@ def get_road_feature_risk(
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 7: Get State Statistics Summary (OPTIMIZED)
-# ============================================================================
+# TOOL 7: Get State Statistics Summary 
 @mcp.tool()
 def get_state_statistics(state: str) -> str:
     """
@@ -514,11 +490,9 @@ def get_state_statistics(state: str) -> str:
         cursor = conn.cursor()
         state_upper = state.upper()
         
-        # Overall stats from state_summary table
         cursor.execute("SELECT * FROM state_summary WHERE State = ?", (state_upper,))
         overall = dict(cursor.fetchone() or {})
         
-        # Top 5 cities from city_stats
         cursor.execute("""
             SELECT City, accident_count as count
             FROM city_stats WHERE State = ?
@@ -526,7 +500,6 @@ def get_state_statistics(state: str) -> str:
         """, (state_upper,))
         top_cities = [dict(row) for row in cursor.fetchall()]
         
-        # Peak hours from hourly_dow_stats
         cursor.execute("""
             SELECT hour_of_day, SUM(accident_count) as count
             FROM hourly_dow_stats WHERE State = ?
@@ -534,7 +507,6 @@ def get_state_statistics(state: str) -> str:
         """, (state_upper,))
         peak_hours = [dict(row) for row in cursor.fetchall()]
         
-        # Top weather conditions from weather_stats
         cursor.execute("""
             SELECT Weather_Condition, accident_count as count
             FROM weather_stats WHERE State = ?
@@ -559,9 +531,7 @@ def get_state_statistics(state: str) -> str:
         }, indent=2)
 
 
-# ============================================================================
 # TOOL 8: Search Accident Descriptions
-# ============================================================================
 @mcp.tool()
 def search_accident_descriptions(
     keywords: str,
@@ -612,9 +582,7 @@ def search_accident_descriptions(
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 9: Get COVID Impact Analysis (OPTIMIZED)
-# ============================================================================
+# TOOL 9: Get COVID Impact Analysis 
 @mcp.tool()
 def get_covid_impact_analysis(state: str | None = None) -> str:
     """
@@ -679,9 +647,7 @@ def get_covid_impact_analysis(state: str | None = None) -> str:
         }, indent=2)
 
 
-# ============================================================================
-# TOOL 10: Get Real-Time Risk Score (OPTIMIZED)
-# ============================================================================
+# TOOL 10: Get Real-Time Risk Score 
 @mcp.tool()
 def get_realtime_risk_score(
     latitude: float,
@@ -708,7 +674,6 @@ def get_realtime_risk_score(
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        # 1. Location risk (use city_stats for nearby areas)
         lat_range = 0.07
         lng_range = 0.09
         
@@ -721,7 +686,6 @@ def get_realtime_risk_score(
               longitude - lng_range, longitude + lng_range))
         location_data = dict(cursor.fetchone())
         
-        # 2. Temporal risk from hourly_dow_stats
         cursor.execute("""
             SELECT SUM(accident_count) as count
             FROM hourly_dow_stats
@@ -729,7 +693,6 @@ def get_realtime_risk_score(
         """, (hour, day_of_week))
         temporal_data = dict(cursor.fetchone())
         
-        # 3. Weather risk from weather_stats
         cursor.execute("""
             SELECT SUM(accident_count) as count,
                    SUM(accident_count * avg_severity) / SUM(accident_count) as severity
@@ -738,7 +701,6 @@ def get_realtime_risk_score(
         """, (f"%{weather}%",))
         weather_data = dict(cursor.fetchone())
         
-        # Get global stats for scoring
         cursor.execute("SELECT avg_hourly, clear_weather_severity FROM global_stats")
         global_stats = dict(cursor.fetchone())
         
@@ -802,8 +764,5 @@ def get_realtime_risk_score(
         }, indent=2)
 
 
-# ============================================================================
-# Main entry point
-# ============================================================================
 if __name__ == "__main__":
     mcp.run()
