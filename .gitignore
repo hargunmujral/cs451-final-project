@@ -1,3 +1,8 @@
 archive.zip
 artifacts/
 US_Accidents_March23.csv
+*.db
+*.sqlite
+*.sqlite3
+mcp_server/__pycache__/
+mcp_server/*.db

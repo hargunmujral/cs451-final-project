@@ -1,0 +1,16 @@
+[project]
+name = "us-accidents-mcp-server"
+version = "1.0.0"
+description = "MCP server for querying US Accidents dataset - powers an Autonomous Vehicle Agent"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+]
+
+[project.scripts]
+us-accidents-mcp = "mcp_server.server:mcp.run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

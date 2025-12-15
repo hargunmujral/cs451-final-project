@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "us-accidents": {
+      "command": "/Users/james/miniconda3/bin/python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "/Users/james/cs451-final-project"
+    }
+  }
+}
